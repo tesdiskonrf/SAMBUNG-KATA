@@ -1,7 +1,6 @@
--- SAMBUNG KATA YURXZ v9.4 — CONFIRMED FIX
--- Deteksi: Name="CurrentWordIndex" (CONFIRMED dari debug scan)
--- Ketik: TextButton Name="A"-"Z" + Name="Enter" (CONFIRMED dari debug scan)
--- isOurTurn: cek tombol "A" visible
+-- SAMBUNG KATA YURXZ v9.5
+-- Deteksi UI langsung (Word + Enter) | KBBI valid | Anti-spam | AUTO + MANUAL
+-- Natural Type | Hide KB | Custom Akhiran | Speed Preset | Rekomendasi 5 kata
 
 local Players      = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -25,12 +24,12 @@ task.wait(0.15)
 -- CONFIG
 -- ==========================================
 local CONFIG = {
-    SPEED_MIN    = 0.02,   -- auto lebih cepat dari manual
-    SPEED_MAX    = 0.06,
+    SPEED_MIN    = 0.04,
+    SPEED_MAX    = 0.10,
     NATURAL_TYPE = true,
     AUTO_SUBMIT  = true,
     HIDE_KB      = true,
-    SUBMIT_COOLDOWN = 1.5,
+    SUBMIT_COOLDOWN = 1.8,
     BEST_ENDINGS = {k=true,h=true,r=true,n=true,l=true,m=true,g=true,p=true,t=true},
     BAD_ENDINGS  = {a=true,i=true,u=true,e=true,o=true},
 }
@@ -40,54 +39,56 @@ local CONFIG = {
 -- ==========================================
 local _WD = {}
 
--- Format: pipe-separated per huruf awal
-_WD["a"] = "abadi|abad|abai|abang|acar|acara|adat|adik|adil|aduh|aduk|agak|agar|agama|agen|agung|ahli|air|ajar|ajak|ajal|ajang|akal|akad|akibat|akrab|aksi|aktif|aku|alam|alang|alat|alih|alim|alir|alis|alun|alur|aman|amal|ambil|amuk|anak|ancam|andai|aneh|angin|anjak|anjur|antar|antik|apik|arah|arang|arit|aroma|atur|awam|awan|awas|awet|ayah|ayam|ayat|ayun|abstrak|adegan|agenda|akhlak|alamat|album|ambisi|amfibi|analis|analisa|anggap|anggur|angkat|angkuh|angkasa|anjing|antara|antena|aparat|artikel|aspirasi|asuransi|aturan|audisi|azab|akurat|adaptasi|adiktif|adrenalin|agresif|akademi|akselerasi|akumulasi|aliansi|alokasi|alternatif|analisis|anarkis|animasi|anomali|antologi|aplikasi|apresiasi|argumen|arsip|aset|asimilasi|asisten|astronomi|atmosfer|audit|autentik|otonom"
+_WD["a"] = "abad|abadi|abah|acar|acara|adat|adik|adil|aduk|agak|agar|agama|agung|ahli|ajar|ajak|ajal|akal|akad|akibat|akrab|aksi|aktif|alam|alat|alih|alim|alir|alis|alun|alur|aman|amal|ambil|amuk|anak|aneh|angin|anjak|anjur|antar|antik|apik|arah|arang|aroma|atur|awan|awas|awet|ayah|ayam|ayat|ayun|abang|abdi|acuh|adab|adat|agak|agen|ahad|ahir|ajang|akur|akut|alap|alar|alas|ambar|amin|amis|andai|andal|asar|asah|asak|asam|asin|asli|asuh"
 
-_WD["b"] = "babu|baca|badan|bagus|bahas|bahasa|bahaya|baik|baju|bakar|bakat|balik|bambu|bangga|bangku|bangun|banjir|bantah|banyak|barang|batas|batu|bawa|bawah|bayar|bayam|bebas|becak|beda|bedah|beku|belah|belajar|belanja|belas|benci|benih|benar|bentuk|berat|bersih|besar|beton|bijak|bisa|bisu|bolos|bubur|budak|bulan|bulu|bunga|bunuh|busuk|biaya|bimbang|binasa|bingung|birahi|bisnis|bocah|borong|brutal|budaya|bukti|buron|buruan|bagan|bagian|bahkan|balasan|bangkit|bantuan|batasan|batuk|beban|bedakan|berhenti|berkembang|berlanjut|bermain|bertahan|berbagi|berhasil|berisik|berlari|bermakna|bernyawa|bertemu|bersatu|besaran|birokrasi|bocoran|bongkar|boikot|bonus|boros|brilian|buram|buruk"
+_WD["b"] = "badan|bagus|bahasa|baik|baju|bakar|bakat|balik|bambu|bangga|bangun|banjir|banyak|barang|batas|batu|bayar|bebas|bedah|beku|belah|belajar|belas|benci|benih|benar|bentuk|berat|bersih|besar|bijak|bisa|bulan|bulu|bunga|bunuh|busuk|budak|budaya|bukti|buruk|babad|babak|badak|bagan|bagian|bahkan|balasan|bangkit|bantuan|batasan|batuk|beban|berhasil|berlari|bermakna|bersatu|bijaksana|bingung|bisnis|bocoran|bongkar|boros|brilian|buram"
 
-_WD["c"] = "cabe|cabut|cacing|cahaya|cakap|calon|campur|cantik|capek|catat|cedera|cemas|cepat|cerah|cerai|cermat|cerita|cinta|cita|coblos|cocok|contoh|cuaca|cubit|cucian|curang|cabai|candu|canggih|capung|catur|cendol|cerdas|ceria|cikal|cindai|ciptaan|coklat|congkak|cukong|culas|curiga|cadangan|cagar|capai|catatan|cekatan|cemerlang|cerdik|ciri|cita-cita|cobaan|corak|cukup|curhat|cekam|cergas|ceruk|cibiran|cipta|cita|citra|colong|coreng|cukong|curang|curup"
+_WD["c"] = "cabai|cabut|cacing|cahaya|cakap|calon|campur|cantik|capek|catat|cedera|cemas|cepat|cerah|cermat|cerita|cinta|cocok|contoh|cuaca|curang|candu|canggih|catur|cerdas|ceria|corak|cukup|curhat|ceruk|cipta|citra|cobaan|cekatan|cemerlang|cerdik|ciri"
 
-_WD["d"] = "dagang|daging|dahaga|damai|dampak|danau|dapat|darah|dasar|data|daun|debat|dalam|dahan|deras|debu|dengar|dengan|dekat|desa|desak|desir|dewan|dilema|diskusi|dongeng|dompet|dunia|durasi|dusta|daya|dayung|debar|dendam|derek|desah|dewa|dinamis|duduk|dukun|dukungan|dakwah|dan|dapur|darang|daya|debat|dedikasi|definisi|degradasi|dekrit|demokratis|deskripsi|destruktif|devisa|dialog|diktator|dimensi|dinamika|diplomasi|disiplin|distribusi|diversifikasi|dogma|dominan|dorongan|drastis|dua|dugaan|dukungan|duplikasi|durasi"
+_WD["d"] = "dagang|daging|damai|dampak|danau|dapat|darah|dasar|data|daun|debat|dalam|deras|debu|dengar|dekat|desa|desak|dewan|dongeng|dompet|dunia|dusta|daya|dayung|debar|dendam|dinamis|duduk|dukun|dukungan|dakwah|dapur|dedikasi|definisi|dialog|disiplin|dua|dugaan"
 
-_WD["e"] = "ekor|ekonomi|ekspor|ekstra|emosi|empuk|endap|energi|engkau|entah|enak|emas|elang|elastis|ekskul|ekspres|elektrik|elite|elok|embun|empati|enggak|evaluasi|evolusi|efektif|efisien|eksekusi|eksistensi|eksperimen|eksploitasi|eksplorasi|ekspresi|eliminasi|emansipasi|embargo|emigrasi|emosi|empiris|endemik|epidemi|era|esai|eskalasi|estetika|etika|etnis|evaluasi|evolusi|ekologi|ekonomi|ekuitas"
+_WD["e"] = "ekor|ekonomi|emosi|empuk|endap|energi|enak|emas|elang|embun|empati|evaluasi|evolusi|efektif|efisien|eksis|ekspor|ekstra|elite|elok|engkau|entah|era|esai|etika|etnis"
 
-_WD["f"] = "faham|fajar|fakir|fakta|faktor|fanatik|fatal|fauna|fenomena|fikir|fiksi|filsafat|final|fisik|fitrah|fokus|formal|forum|foto|fungsi|frekuensi|frustasi|fasih|fasilitas|favorit|federal|feminisme|filosofi|finansial|fleksibel|fondasi|formulasi|fragmentasi|fundamental"
+_WD["f"] = "faham|fajar|fakir|fakta|faktor|fanatik|fatal|fauna|fenomena|fikir|fiksi|filsafat|fisik|fitrah|fokus|formal|forum|foto|fungsi|fasih|fasilitas|favorit|fondasi|fundamental"
 
-_WD["g"] = "gairah|gaji|galon|gambar|ganas|ganggu|gantung|garang|garpu|gelar|gelap|gempa|gemuk|gerak|getah|golong|gosip|gula|gulat|gunung|galak|gambut|ganggang|gapai|garap|garuda|geliat|gelora|gemilang|genggam|getir|gigih|girang|gotong|gratis|gusar|guyub|gabungan|gagal|gagasan|galang|ganas|gaung|gejolak|gelisah|gelombang|gempa|gerak|geriap|gerindra|getaran|gigih|golongan|gonjang|gontai|guncang|guyuran"
+_WD["g"] = "gairah|gaji|gambar|ganas|ganggu|garang|garpu|gelar|gelap|gempa|gemuk|gerak|getah|gosip|gula|gulat|gunung|galak|garuda|gemilang|genggam|getir|gigih|girang|gotong|gratis|gusar|guyub|gabungan|gagal|gagasan|gejolak|gelisah|gelombang|gerakan|golongan|guncang"
 
-_WD["h"] = "habis|harga|harap|hari|hasil|hati|harum|haus|hebat|hemat|hidup|hijau|hikmat|hikmah|hormat|hujan|hukum|huruf|halus|hambat|handal|hangat|harkat|harmoni|hasrat|heboh|heran|hijrah|hilang|hisab|hitam|horor|hubung|hujat|hukuman|hadap|hadiah|hadir|harapan|harmonis|hasil|hasrat|hebat|hiruk|hubungan|hukum|humanis|huni|hustle"
+_WD["h"] = "habis|harga|harap|hari|hasil|hati|harum|haus|hebat|hemat|hidup|hijau|hikmat|hormat|hujan|hukum|huruf|halus|hambat|hangat|harkat|harmoni|hasrat|heboh|heran|hijrah|hilang|hitam|hubung|hadap|hadiah|hadir|harapan|hakikat|hambatan|hancur|handuk|hantam|hapus|haram|hayat|hewan|hikmah|hubungan"
 
-_WD["i"] = "ibarat|ikhlas|ikat|iklim|ikut|ilmu|iman|impian|inovasi|insan|inspirasi|instansi|integrasi|intelijen|irama|ironi|isi|isyarat|ideal|identitas|ideologi|ilmiah|imajinasi|implikasi|industri|informasi|inisiasi|inklusif|instruksi|investasi|isolasi|isu|idealis|ikhlas|ikhtiar|implementasi|impor|indikasi|induksi|inferensi|infrastruktur|inherent|inisiatif|inkonsistensi|inovasi|institusi|interaksi|internalisasi|interpretasi|intervensi|investigasi|isolasi"
+_WD["i"] = "ibarat|ikhlas|ikat|iklim|ikut|ilmu|iman|impian|inovasi|insan|inspirasi|integrasi|irama|ironi|isyarat|ideal|identitas|ideologi|ilmiah|imajinasi|industri|informasi|inisiasi|instruksi|investasi|isolasi|idealis|ikhtiar|implementasi|impor|infrastruktur|institusi|interaksi|interpretasi|investigasi"
 
-_WD["j"] = "jabat|jahat|jalan|jangka|jauh|jawab|jelas|jelita|jembatan|jimat|jujur|jumpa|jurus|jasa|jasad|jaya|jeda|jejak|jenuh|jiwa|joget|jual|juang|junjung|jurnal|juta|jabatan|jagoan|jalur|jamak|jantan|jarang|jaring|jasad|jemput|jenaka|jenis|jernih|jitu|jugul|julukan|jalinan|janji|jaminan|jangkauan|jasad|jaya|jejaring|jelas|jemput|jendela|jernih|jiwa|jual|juang|jumpa|junjung|jurang"
+_WD["j"] = "jabat|jahat|jalan|jangka|jauh|jawab|jelas|jelita|jembatan|jujur|jumpa|jurus|jasa|jasad|jaya|jeda|jejak|jenuh|jiwa|joget|jual|juang|junjung|jurnal|juta|jabatan|jagoan|jalur|jantan|jarang|jaring|jemput|jenaka|jenis|jernih|jitu|julukan|jalinan|janji|jaminan|jangkauan|jejaring|jendela|jurang"
 
-_WD["k"] = "kabar|kaget|kaku|kalah|kampus|kandas|karya|kasih|kawan|kebun|kejar|keras|kira|kode|kolam|kotor|kuat|kubah|kudeta|kulit|kunci|kurang|kabur|kagum|kajian|kalbu|kalimat|kapas|kapur|karang|kasta|kebal|kebijakan|kebudayaan|kecewa|kecut|kehendak|kekuatan|keluhan|kemampuan|kepala|keputusan|kerajaan|kesal|kidal|kisah|kitab|klien|koboi|koleksi|konsep|konten|konteks|korek|korban|korupsi|kosong|kritis|kronis|krusial|kuliah|kultural|kumpul|kusut|kalangan|kampanye|karakter|karena|kartografi|kategorisasi|keadilan|keamanan|keberhasilan|kebetulan|kebijakan|kebijaksanaan|kebutuhan|kedalaman|kegagalan|kegiatan|keinginan|kekacauan|kekuasaan|keluarga|kemajuan|kemampuan|kemandirian|kemanusiaan|kemerdekaan|kepercayaan|keperluan|kesadaran|kesatuan|kesehatan|kesempatan|ketegasan|keterlibatan|keteladanan|ketepatan|ketulusan|kewajiban"
+_WD["k"] = "kabar|kaget|kaku|kalah|kampus|karya|kasih|kawan|kebun|kejar|keras|kira|kode|kolam|kuat|kubah|kulit|kunci|kurang|kabur|kagum|kajian|kalbu|kalimat|karang|kebijakan|kecewa|kehendak|kekuatan|keluhan|kemampuan|kepala|keputusan|kerajaan|kesal|kisah|kitab|koleksi|konsep|korban|kritis|kuliah|kumpul|kusut|kalangan|karakter|keadilan|keamanan|keberhasilan|kebutuhan|kedalaman|kegagalan|kegiatan|keinginan|kekuasaan|keluarga|kemajuan|kemerdekaan|kepercayaan|kesadaran|kesatuan|kesehatan|kesempatan|ketegasan|kewajiban"
 
-_WD["l"] = "labuh|lacak|ladang|lahir|laju|langit|lapang|latih|lawan|layak|lebar|lemah|lempar|lengkap|lepas|lihat|lirik|lolos|lowong|luang|lubang|lucu|lukis|lulus|lunas|luntur|lurus|larang|lasak|laskar|latah|lekat|lelah|lembar|lentur|lesung|liberal|lihai|lingkar|lingkup|listrik|logis|logam|lompat|longsor|loyal|lumpur|luput|lusuh|laju|langkah|larangan|latihan|lebih|legasi|legitimasi|lemah|lembaga|lestari|lingkungan|lokal|logika|loyalitas|lugas|luwes"
+_WD["l"] = "labuh|lacak|ladang|lahir|laju|langit|lapang|latih|lawan|layak|lebar|lemah|lempar|lengkap|lepas|lihat|lirik|lolos|luang|lubang|lucu|lukis|lulus|lunas|luntur|lurus|larang|lasak|laskar|latah|lekat|lelah|lembar|lentur|liberal|lihai|lingkar|lingkup|listrik|logis|logam|lompat|loyal|lumpur|luput|lusuh|langkah|larangan|latihan|lebih|legasi|lembaga|lestari|lingkungan|lokal|logika|loyalitas|lugas|luwes"
 
-_WD["m"] = "mabuk|macam|maju|makar|makin|malam|mampu|manajer|marah|massa|masuk|mati|mawar|mayor|media|megah|mekar|menang|mendaki|merah|mesra|modal|mogok|momen|muda|mudah|mulia|munafik|muncul|murni|mahir|makna|maksud|malang|manfaat|mantan|mapan|martabat|masalah|matang|mawas|melarat|melawan|melodi|membara|mencari|mendung|mengaku|menikah|mentah|merana|merapi|merata|merdeka|meriah|minat|minyak|mirip|miskin|mobil|modifikasi|momentum|moral|motivasi|mujarab|mukjizat|musim|mustahil|madani|mahkamah|maklumat|manajerial|mandat|manipulasi|manifestasi|masyarakat|mekanisme|memori|merambat|merebak|merekam|meresap|merespon|merintis|merumuskan|mewujudkan|migrasi|militer|misi|mobilisasi|modernisasi|monopoli|moralitas"
+_WD["m"] = "mabuk|macam|maju|makar|makin|malam|mampu|marah|massa|masuk|mati|mawar|media|megah|mekar|menang|merah|mesra|modal|mogok|momen|muda|mudah|mulia|muncul|murni|mahir|makna|maksud|malang|manfaat|mantan|mapan|martabat|masalah|matang|mawas|melawan|melodi|mendung|menikah|mentah|merdeka|meriah|minat|minyak|miskin|modifikasi|momentum|moral|motivasi|mujarab|musim|madani|manajerial|mandat|manifestasi|masyarakat|mekanisme|memori|migrasi|militer|misi|mobilisasi|modernisasi|monopoli|moralitas"
 
 _WD["n"] = "naik|nilai|nikmat|niat|normal|nyaman|nyawa|nakal|naluri|nama|napas|narasi|nasib|nasional|nekat|netral|nihil|nirwana|nista|nonton|nurani|nusantara|naturalisasi|negosiasi|netralitas|norma|nyata"
 
-_WD["o"] = "obat|objek|obrolan|olah|omong|opini|orang|otak|otomatis|ombak|omset|operasi|optimal|orbit|organisasi|orientasi|observasi|oposisi|orisinal|otoritas|otonomi"
+_WD["o"] = "obat|objek|obrolan|olah|omong|opini|orang|otak|otomatis|ombak|operasi|optimal|orbit|organisasi|orientasi|observasi|oposisi|orisinal|otoritas|otonomi"
 
-_WD["p"] = "panas|pandai|panjang|pasang|pecah|peduli|pejuang|pekat|pelan|pemuda|perang|perlu|pertama|perut|pikir|pintar|pokok|prestasi|prinsip|proses|punya|pusat|pabrik|padu|paham|paksa|pamer|panik|pantau|paraf|paras|paruh|patuh|pecinta|pendapat|pengaruh|percaya|perdana|performa|permata|persatu|persepsi|persis|pertemuan|pertolongan|pesona|petani|petunjuk|pilihan|positif|potensial|praktis|produktif|profil|progresif|proyek|publik|puncak|punggung|pelajaran|pelaksanaan|pelayanan|pemerintah|pendidikan|pengalaman|pengetahuan|penjabaran|penyusunan|pepaya|perceraian|perlindungan|perkembangan|perjuangan|perilaku|perjalanan|persatuan|persyaratan|pertahanan|pertumbuhan|pilar|platform|polarisasi|prioritas|produktivitas|profesi|program|prospek|proteksi"
+_WD["p"] = "panas|pandai|panjang|pasang|pecah|peduli|pejuang|pekat|pelan|pemuda|perang|perlu|pertama|perut|pikir|pintar|pokok|prestasi|prinsip|proses|punya|pusat|pabrik|padu|paham|paksa|pamer|panik|pantau|patuh|pendapat|pengaruh|percaya|perdana|performa|permata|persatu|persepsi|pertolongan|pesona|petani|petunjuk|pilihan|positif|potensial|praktis|produktif|profil|progresif|proyek|publik|puncak|pelajaran|pelaksanaan|pelayanan|pemerintah|pendidikan|pengalaman|pengetahuan|persatuan|pertahanan|pertumbuhan|pilar|prioritas|produktivitas|profesi|program|proteksi"
 
-_WD["r"] = "raba|ragam|raih|rajin|rakus|rakyat|ramah|rancang|rapuh|rasio|ratus|ribut|rinci|ringan|risau|risiko|rohani|ruang|rubah|rugikan|rujuk|rumah|runding|runtuh|rasa|rata|rawat|rela|rendah|respek|retak|riuh|roboh|royong|rumus|rakyat|ratifikasi|realitas|reformasi|regulasi|rehabilitasi|rekonsiliasi|relevan|representasi|resolusi|respons|restrukturisasi|revolusi|rivalitas|ruang"
+_WD["r"] = "raba|ragam|raih|rajin|rakus|rakyat|ramah|rancang|rapuh|rasio|ratus|ribut|rinci|ringan|risau|risiko|rohani|ruang|rujuk|rumah|runding|runtuh|rasa|rata|rawat|rela|rendah|respek|retak|riuh|roboh|royong|rumus|realitas|reformasi|regulasi|rehabilitasi|rekonsiliasi|relevan|representasi|resolusi|revolusi"
 
-_WD["s"] = "sabar|sadar|sakti|salah|sama|sambil|santai|santun|sayang|sebab|sehat|selamat|semangat|sendiri|sepakat|serius|siap|sikap|simpan|singkat|sinis|sistem|sobat|solusi|sopan|sosial|strategis|sukses|sungguh|surga|susah|swasta|syukur|sahabat|sahaja|saksi|sampai|saran|satuan|segar|sejati|sekat|selama|selalu|semua|sengat|senjata|sentuh|sepatu|serasi|serba|serta|setia|sigap|silih|simpati|skala|slogan|soal|sorot|struktur|studi|suara|subur|sulit|sumber|sunyi|syarat|sabotase|sanksi|sentralisasi|signifikan|simulasi|sistematik|situasi|solidaritas|soverign|spekulasi|stabilitas|standar|stategi|stimulasi|substansi|sulitnya|sumber|supremasi|sustainable"
+_WD["s"] = "sabar|sadar|sakti|salah|sama|sambil|santai|santun|sayang|sebab|sehat|selamat|semangat|sendiri|sepakat|serius|siap|sikap|simpan|singkat|sistem|solusi|sopan|sosial|sukses|sungguh|syukur|sahabat|sahaja|saksi|sampai|saran|satuan|segar|sejati|selama|selalu|semua|senjata|sentuh|serasi|serba|serta|setia|sigap|simpati|skala|soal|sorot|struktur|studi|suara|subur|sulit|sumber|sunyi|syarat|signifikan|simulasi|situasi|solidaritas|spekulasi|stabilitas|standar|strategi|substansi|supremasi"
 
-_WD["t"] = "tabah|tahan|tajam|takdir|tanah|tantang|tatap|teguh|tekad|tekun|teladan|tenang|terima|tindak|tujuan|tugas|tuntas|turut|tabung|takluk|takwa|tanam|tanduk|tanya|tapak|tarik|tarung|teliti|telusur|tempuh|tenun|tepat|terasa|terbang|terjal|tetap|tindas|tipu|tobat|tokoh|toleran|topang|total|tradisi|transparan|tulus|tunai|turun|tata|tatanan|teknis|terdepan|terlibat|terlaksana|terorganisir|terpadu|terpenuhi|tersedia|terwujud|transformasi|transparansi|tren|tribun|tumpuan"
+_WD["t"] = "tabah|tahan|tajam|takdir|tanah|tantang|tatap|teguh|tekad|tekun|teladan|tenang|terima|tindak|tujuan|tugas|tuntas|turut|tabung|takluk|takwa|tanam|tanduk|tanya|tapak|tarik|tarung|teliti|telusur|tempuh|tenun|tepat|terbang|terjal|tetap|tindas|tipu|tobat|tokoh|toleran|topang|total|tradisi|transparan|tulus|tunai|turun|tata|tatanan|teknis|terdepan|terlibat|terpadu|terwujud|transformasi|transparansi|tren|tumpuan"
 
-_WD["u"] = "ubah|uji|ulang|ulung|umum|undang|ungkap|unik|upaya|urus|usaha|usul|utama|ucap|ukur|ulet|unggulan|unit|universal|urgen|utuh|ujian|ukuran|umpan|undangan|unggul|unggulan|urgensi"
+_WD["u"] = "ubah|uji|ulang|ulung|umum|undang|ungkap|unik|upaya|urus|usaha|usul|utama|ucap|ukur|ulet|unggulan|unit|universal|urgen|utuh|ujian|ukuran|umpan|undangan|unggul|urgensi"
 
-_WD["v"] = "valid|variasi|visi|vital|vokal|volume|vulgar|validasi|verifikasi"
+_WD["v"] = "valid|variasi|visi|vital|vokal|volume|validasi|verifikasi|varian|veteran|visual"
 
-_WD["w"] = "wajah|wajar|waktu|wanita|warga|warna|wasiat|waspada|wujud|watak|wawasan|wirausaha|wisata|wacana|wajib|waspadai|wewenang"
+_WD["w"] = "wajah|wajar|waktu|wanita|warga|warna|wasiat|waspada|wujud|watak|wawasan|wirausaha|wisata|wacana|wajib|wewenang|wahyu|walau|wali|warisan|wakaf|waras"
 
-_WD["y"] = "yakin|yang"
+_WD["x"] = "xenon|xilem"
 
-_WD["z"] = "zaman|zalim|zikir|zona|zakat|zarurat"
+_WD["y"] = "yakin|yakni|yayasan|yuridis|yatim|yoga|yudisial"
+
+_WD["z"] = "zakat|zaman|zona|zuhud|zalim|zat|ziarah|zoologi|zuhur"
+
 
 -- Build lookup: huruf awal -> list kata
 local WORD_LIST = {}
@@ -160,7 +161,11 @@ local function findBestWord(prefix)
 end
 
 -- ==========================================
--- DETEKSI UI GAME v9.1 — MULTI STRATEGI
+-- DETEKSI UI GAME (dari hasil riset console)
+-- Confirmed: TextLabel "Word" berisi prefix (1-3 huruf)
+--            TextLabel "WordServer" = "Hurufnya adalah:" saat giliran kita
+--            TextLabel "UsedWordWarn" tidak kosong = kata sudah dipakai
+--            TextLabel "Warning" berisi "DELAY" = kena spam penalty
 -- ==========================================
 local function getDescendants()
     local res = {}
@@ -182,141 +187,67 @@ local function findByName(name, class)
     return nil
 end
 
--- ══ DEBUG SCANNER ══════════════════════════════════════
--- Jalankan ini saat giliran kamu aktif untuk cari nama label
-local function debugScanUI()
-    print("══════ DEBUG SCAN UI ══════")
-    print("=== TEXTLABEL (semua visible) ===")
-    for _, v in ipairs(getDescendants()) do
-        if v:IsA("TextLabel") and v.Visible then
-            local txt = v.Text:match("^%s*(.-)%s*$") or ""
-            if #txt > 0 and #txt < 60 then
-                print(string.format('  Name="%s"  Text="%s"  Size=%.0fx%.0f',
-                    v.Name, txt:sub(1,40), v.AbsoluteSize.X, v.AbsoluteSize.Y))
-            end
-        end
-    end
-    print("=== TEXTBUTTON (nama A-Z atau Enter) ===")
-    for _, v in ipairs(getDescendants()) do
-        if v:IsA("TextButton") and v.Visible then
-            local n = v.Name
-            if (n:match("^[A-Za-z]$") or n:lower():find("enter") or n:lower():find("submit")) then
-                print(string.format('  Name="%s"  Text="%s"', n, v.Text))
-            end
-        end
-    end
-    print("══════ END SCAN ══════")
-end
-
--- Ketik "debugScan()" di konsol executor untuk scan UI
-pcall(function() getgenv().debugScan = debugScanUI end)
-
--- ══ AMBIL KATA TERAKHIR DI PAPAN ══════════════════════
--- Nama-nama label yang mungkin digunakan game berbeda-beda
--- Script ini mencoba SEMUA kemungkinan
-local _BOARD_NAMES = {
-    -- nama eksak yang pernah ditemukan di berbagai versi game
-    "Words","Word","CurrentWord","LastWord","PrevWord","BoardWord",
-    "WordDisplay","WordLabel","ChainWord","ActiveWord","LatestWord",
-    "KataLawan","KataSekarang","KataAktif","KataDisplay","Kata",
-    "WordText","WordBoard","ChainLabel","CurrentChain","LastChain",
-}
-
+-- Ambil kata terakhir di papan (kata lawan) dari TextLabel "Words"
 local function getLastWordOnBoard()
-    -- Strategi 1: cari dari nama-nama yang dikenal
-    for _, name in ipairs(_BOARD_NAMES) do
-        for _, v in ipairs(getDescendants()) do
-            if v:IsA("TextLabel") and v.Name == name and v.Visible then
-                local txt = v.Text:match("^%s*(.-)%s*$") or ""
-                txt = txt:lower():match("^([a-z]+)") or ""
-                if #txt >= 2 then return txt end
-            end
-        end
-    end
-
-    -- Strategi 2: scan label yang isinya kata Indonesia valid (2-25 huruf)
-    -- Urutkan dari yang ukurannya paling besar (display utama)
-    local cands = {}
     for _, v in ipairs(getDescendants()) do
-        if v:IsA("TextLabel") and v.Visible then
-            local txt = (v.Text:match("^%s*(.-)%s*$") or ""):lower()
-            if #txt >= 2 and #txt <= 25 and txt:match("^[a-z]+$") then
-                local sz = v.AbsoluteSize
-                table.insert(cands, {txt=txt, area=sz.X*sz.Y, v=v})
+        if v:IsA("TextLabel") and v.Name == "Words" and v.Visible then
+            local txt = v.Text:match("^%s*(.-)%s*$")
+            if txt and #txt >= 2 and txt:match("^[A-Za-z]+$") then
+                return txt:lower()
             end
         end
     end
-    table.sort(cands, function(a,b) return a.area > b.area end)
-    if #cands > 0 then return cands[1].txt end
-
     return nil
 end
 
 local function getCurrentPrefix()
-    -- ══ CONFIRMED dari debug scan: ══
-    -- Name="CurrentWordIndex" Text="A" Size=150x25  ← huruf awal giliran kita
-    -- Name="Words" Text="buah" Size=146x16          ← kata lawan di papan
-
-    -- Strategi 1: CurrentWordIndex — CONFIRMED nama label game ini
+    -- Metode 1: CurrentWordIndex — CONFIRMED dari debug scan
+    -- Text berisi "A", "B", dll (1 huruf = huruf awal giliran kita)
     local cwi = findByName("CurrentWordIndex", "TextLabel")
     if cwi then
         local txt = cwi.Text:match("^%s*(.-)%s*$") or ""
-        if #txt >= 1 and txt:match("^[A-Za-z]+$") then
-            return txt:lower():sub(1,1)  -- ambil 1 huruf pertama saja
+        if #txt >= 1 and txt:match("^[A-Za-z]") then
+            return txt:sub(1,1):lower()  -- ambil 1 huruf pertama saja
         end
     end
 
-    -- Strategi 2: cari kata di papan (Name="Words") → ambil huruf terakhir
-    local words = findByName("Words", "TextLabel")
-    if words and words.Visible then
-        local txt = (words.Text:match("^%s*(.-)%s*$") or ""):lower()
-        if #txt >= 2 and txt:match("^[a-z]+$") then
-            return txt:sub(-1)
-        end
-    end
-
-    -- Strategi 3: WordServer label
-    local ws = findByName("WordServer", "TextLabel")
-    if ws then
-        local found = ws.Text:match("[Hh]urufnya%s*[Aa]dalah%s*:%s*([A-Za-z])")
-                   or ws.Text:match("[Hh]uruf%s*:%s*([A-Za-z])")
+    -- Metode 2: WordServer "Hurufnya adalah: X"
+    local wsLabel = findByName("WordServer", "TextLabel")
+    if wsLabel then
+        local found = wsLabel.Text:match("[Hh]urufnya%s+adalah%s*:%s*([A-Za-z]+)")
         if found then return found:lower() end
+        local huruf = wsLabel.Text:match(":%s*([A-Za-z]+)%s*$")
+        if huruf and #huruf <= 3 then return huruf:lower() end
     end
 
-    -- Strategi 4: scan semua label berisi tepat 1 huruf kapital (display huruf)
-    -- Urutkan dari ukuran terbesar
-    local cands = {}
-    for _, v in ipairs(getDescendants()) do
-        if v:IsA("TextLabel") and v.Visible then
-            local txt = v.Text:match("^%s*(.-)%s*$") or ""
-            if #txt == 1 and txt:match("[A-Za-z]") then
-                local sz = v.AbsoluteSize
-                table.insert(cands, {letter=txt:lower(), area=sz.X*sz.Y})
-            end
-        end
-    end
-    table.sort(cands, function(a,b) return a.area > b.area end)
-    if #cands > 0 then return cands[1].letter end
-
-    -- Strategi 5: ambil dari kata terbesar di papan → huruf terakhir
+    -- Metode 3: Huruf terakhir dari kata lawan di papan (Name="Words")
     local boardWord = getLastWordOnBoard()
-    if boardWord and #boardWord >= 2 then
+    if boardWord then
         return boardWord:sub(-1)
+    end
+
+    -- Metode 4: TextLabel "Word"
+    local wordLabel = findByName("Word", "TextLabel")
+    if wordLabel then
+        local txt = wordLabel.Text:match("^%s*(.-)%s*$")
+        if txt and #txt >= 1 and #txt <= 5 and txt:match("^[A-Za-z]+$") then
+            return txt:sub(1,1):lower()
+        end
     end
 
     return nil
 end
 
--- Cek apakah giliran kita
--- CONFIRMED: saat giliran kita, TextButton Name="A" s/d "Z" + "Enter" visible
+-- Cek apakah giliran kita (keyboard huruf A visible = giliran kita)
 local function isOurTurn()
-    -- Cara paling reliable: cek tombol "A" visible
     local aBtn = findByName("A", "TextButton")
     if aBtn and aBtn.Visible then return true end
-    -- Backup: cek tombol Enter visible
-    local enter = findByName("Enter", "TextButton")
-    if enter and enter.Visible then return true end
-    -- Backup: CurrentWordIndex ada isinya
+    local ws = findByName("WordServer", "TextLabel")
+    if ws then
+        local t = ws.Text:lower()
+        return t:find("hurufnya") ~= nil or t:find("huruf") ~= nil
+    end
+    -- CONFIRMED dari debug scan: CurrentWordIndex ada isinya = giliran kita
     local cwi = findByName("CurrentWordIndex", "TextLabel")
     if cwi and cwi.Visible then
         local txt = cwi.Text:match("^%s*(.-)%s*$") or ""
@@ -392,35 +323,10 @@ local function findLetterBtn(letter)
     return nil
 end
 
--- ==========================================
--- KLIK TOMBOL — 4 METODE SEKALIGUS
--- ==========================================
 local function clickBtn(btn)
     if not btn then return end
-
-    -- Metode 1: Fire event langsung
     pcall(function() btn.MouseButton1Click:Fire() end)
-    task.wait(0.01)
-
-    -- Metode 2: VirtualInputManager dengan koordinat absolut
-    -- (paling reliable di mobile executor / Fluxus / Delta)
-    pcall(function()
-        local cx = btn.AbsolutePosition.X + btn.AbsoluteSize.X / 2
-        local cy = btn.AbsolutePosition.Y + btn.AbsoluteSize.Y / 2
-        VIM:SendMouseButtonEvent(cx, cy, 0, true,  game, 1)
-        task.wait(0.01)
-        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
-    end)
-    task.wait(0.01)
-
-    -- Metode 3: simulasi MouseButton1Down + Up lewat event
-    pcall(function()
-        btn.MouseButton1Down:Fire()
-        task.wait(0.01)
-        btn.MouseButton1Up:Fire()
-    end)
-
-    task.wait(0.01)
+    task.wait(0.02)
 end
 
 -- ==========================================
@@ -435,72 +341,33 @@ local function submitWord(word)
         task.wait(CONFIG.SUBMIT_COOLDOWN - (now - lastSubmitTime))
     end
 
-    -- ══ CONFIRMED dari debug scan: game pakai TextButton Name="A".."Z" + Name="Enter" ══
-
-    -- ── PRIORITAS 1: Klik tombol huruf A-Z (CARA UTAMA game ini) ──
-    local testBtn = findLetterBtn("a") or findLetterBtn("s") or findLetterBtn("n")
-    if testBtn then
-        for i = 1, #word do
-            local ch = word:sub(i, i)
-            local b = findLetterBtn(ch)
-            if b then
-                clickBtn(b)
-            end
-            local delay = CONFIG.SPEED_MIN + math.random() * (CONFIG.SPEED_MAX - CONFIG.SPEED_MIN)
+    -- Klik tombol huruf satu per satu (cara utama untuk game ini)
+    local allFound = true
+    for i = 1, #word do
+        local ch = word:sub(i,i)
+        local btn = findLetterBtn(ch)
+        if btn then
+            clickBtn(btn)
+            local delay = CONFIG.SPEED_MIN + math.random()*(CONFIG.SPEED_MAX-CONFIG.SPEED_MIN)
             task.wait(delay)
+        else
+            allFound = false
+            break
         end
-
-        task.wait(0.1)
-
-        -- Klik tombol Enter (Name="Enter" CONFIRMED)
-        if CONFIG.AUTO_SUBMIT then
-            local sb = findSubmitBtn()
-            if sb then
-                clickBtn(sb)
-            else
-                pcall(function()
-                    VIM:SendKeyEvent(true,  Enum.KeyCode.Return, false, game)
-                    task.wait(0.05)
-                    VIM:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                end)
-            end
-        end
-
-        lastSubmitTime = tick()
-        return true
     end
 
-    -- ── PRIORITAS 2: TextBox fallback (kalau game versi lain) ──
-    local box = findInputBox()
-    if box and box.Parent then
-        pcall(function() box:CaptureFocus() end)
-        task.wait(0.04)
-        box.Text = ""
-        task.wait(0.02)
-        for i = 1, #word do
-            box.Text = word:sub(1, i)
-            local delay = CONFIG.SPEED_MIN + math.random() * (CONFIG.SPEED_MAX - CONFIG.SPEED_MIN)
-            task.wait(delay)
+    task.wait(0.1)
+
+    -- Klik tombol Enter (CONFIRMED dari scan)
+    if CONFIG.AUTO_SUBMIT then
+        local sb = findSubmitBtn()
+        if sb then
+            clickBtn(sb)
         end
-        task.wait(0.08)
-        if CONFIG.AUTO_SUBMIT then
-            local sb = findSubmitBtn()
-            if sb then clickBtn(sb)
-            else
-                pcall(function()
-                    VIM:SendKeyEvent(true,  Enum.KeyCode.Return, false, game)
-                    task.wait(0.05)
-                    VIM:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
-                end)
-            end
-        end
-        lastSubmitTime = tick()
-        return true
     end
 
-    print("[SK] ⚠ Tidak ada tombol huruf maupun TextBox!")
     lastSubmitTime = tick()
-    return false
+    return true
 end
 
 -- ==========================================
@@ -1112,6 +979,7 @@ gset("SK_Stop", function()
     gset("SK_Stop", nil)
 end)
 
-print("[SAMBUNG KATA v9.4] Loaded! — CONFIRMED FIX")
-print("[SAMBUNG KATA v9.4] Detect: TextLabel 'CurrentWordIndex' → huruf giliran kita")
-print("[SAMBUNG KATA v9.4] Ketik: TextButton 'A'-'Z' + 'Enter' (CONFIRMED dari scan)")
+print("[SAMBUNG KATA v9.5] Loaded! Fix: detect + kamus bersih")
+print("[SAMBUNG KATA v9.0] Deteksi: TextLabel 'Word' + TextButton 'Enter' (confirmed)")
+print("[SAMBUNG KATA v9.0] AUTO = jawab otomatis | MANUAL = pilih dari 5 rekomendasi")
+print("[SAMBUNG KATA v9.0] Fitur: Anti-spam | Natural Type | Custom Akhiran | Speed 4x")
