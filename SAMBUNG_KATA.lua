@@ -1,6 +1,6 @@
--- SAMBUNG KATA YURXZ v9.0
--- Deteksi UI langsung (Word + Enter) | KBBI valid | Anti-spam | AUTO + MANUAL
--- Natural Type | Hide KB | Custom Akhiran | Speed Preset | Rekomendasi 5 kata
+-- SAMBUNG KATA YURXZ v9.3 — FIX AUTO KETIK
+-- TextBox jadi prioritas utama (bukan tombol A-Z)
+-- Auto lebih cepat | Detect 7 strategi | debugScan() untuk debug
 
 local Players      = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -24,12 +24,12 @@ task.wait(0.15)
 -- CONFIG
 -- ==========================================
 local CONFIG = {
-    SPEED_MIN    = 0.04,
-    SPEED_MAX    = 0.10,
+    SPEED_MIN    = 0.02,   -- auto lebih cepat dari manual
+    SPEED_MAX    = 0.06,
     NATURAL_TYPE = true,
     AUTO_SUBMIT  = true,
     HIDE_KB      = true,
-    SUBMIT_COOLDOWN = 1.8,
+    SUBMIT_COOLDOWN = 1.5,
     BEST_ENDINGS = {k=true,h=true,r=true,n=true,l=true,m=true,g=true,p=true,t=true},
     BAD_ENDINGS  = {a=true,i=true,u=true,e=true,o=true},
 }
@@ -159,11 +159,7 @@ local function findBestWord(prefix)
 end
 
 -- ==========================================
--- DETEKSI UI GAME (dari hasil riset console)
--- Confirmed: TextLabel "Word" berisi prefix (1-3 huruf)
---            TextLabel "WordServer" = "Hurufnya adalah:" saat giliran kita
---            TextLabel "UsedWordWarn" tidak kosong = kata sudah dipakai
---            TextLabel "Warning" berisi "DELAY" = kena spam penalty
+-- DETEKSI UI GAME v9.1 — MULTI STRATEGI
 -- ==========================================
 local function getDescendants()
     local res = {}
@@ -185,66 +181,158 @@ local function findByName(name, class)
     return nil
 end
 
--- Ambil kata terakhir di papan (kata lawan) dari TextLabel "Words"
-local function getLastWordOnBoard()
+-- ══ DEBUG SCANNER ══════════════════════════════════════
+-- Jalankan ini saat giliran kamu aktif untuk cari nama label
+local function debugScanUI()
+    print("══════ DEBUG SCAN UI ══════")
+    print("=== TEXTLABEL (semua visible) ===")
     for _, v in ipairs(getDescendants()) do
-        if v:IsA("TextLabel") and v.Name == "Words" and v.Visible then
-            local txt = v.Text:match("^%s*(.-)%s*$")
-            if txt and #txt >= 2 and txt:match("^[A-Za-z]+$") then
-                return txt:lower()
+        if v:IsA("TextLabel") and v.Visible then
+            local txt = v.Text:match("^%s*(.-)%s*$") or ""
+            if #txt > 0 and #txt < 60 then
+                print(string.format('  Name="%s"  Text="%s"  Size=%.0fx%.0f',
+                    v.Name, txt:sub(1,40), v.AbsoluteSize.X, v.AbsoluteSize.Y))
             end
         end
     end
+    print("=== TEXTBUTTON (nama A-Z atau Enter) ===")
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextButton") and v.Visible then
+            local n = v.Name
+            if (n:match("^[A-Za-z]$") or n:lower():find("enter") or n:lower():find("submit")) then
+                print(string.format('  Name="%s"  Text="%s"', n, v.Text))
+            end
+        end
+    end
+    print("══════ END SCAN ══════")
+end
+
+-- Ketik "debugScan()" di konsol executor untuk scan UI
+pcall(function() getgenv().debugScan = debugScanUI end)
+
+-- ══ AMBIL KATA TERAKHIR DI PAPAN ══════════════════════
+-- Nama-nama label yang mungkin digunakan game berbeda-beda
+-- Script ini mencoba SEMUA kemungkinan
+local _BOARD_NAMES = {
+    -- nama eksak yang pernah ditemukan di berbagai versi game
+    "Words","Word","CurrentWord","LastWord","PrevWord","BoardWord",
+    "WordDisplay","WordLabel","ChainWord","ActiveWord","LatestWord",
+    "KataLawan","KataSekarang","KataAktif","KataDisplay","Kata",
+    "WordText","WordBoard","ChainLabel","CurrentChain","LastChain",
+}
+
+local function getLastWordOnBoard()
+    -- Strategi 1: cari dari nama-nama yang dikenal
+    for _, name in ipairs(_BOARD_NAMES) do
+        for _, v in ipairs(getDescendants()) do
+            if v:IsA("TextLabel") and v.Name == name and v.Visible then
+                local txt = v.Text:match("^%s*(.-)%s*$") or ""
+                txt = txt:lower():match("^([a-z]+)") or ""
+                if #txt >= 2 then return txt end
+            end
+        end
+    end
+
+    -- Strategi 2: scan label yang isinya kata Indonesia valid (2-25 huruf)
+    -- Urutkan dari yang ukurannya paling besar (display utama)
+    local cands = {}
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextLabel") and v.Visible then
+            local txt = (v.Text:match("^%s*(.-)%s*$") or ""):lower()
+            if #txt >= 2 and #txt <= 25 and txt:match("^[a-z]+$") then
+                local sz = v.AbsoluteSize
+                table.insert(cands, {txt=txt, area=sz.X*sz.Y, v=v})
+            end
+        end
+    end
+    table.sort(cands, function(a,b) return a.area > b.area end)
+    if #cands > 0 then return cands[1].txt end
+
     return nil
 end
 
 local function getCurrentPrefix()
-    -- Metode 1: CurrentWordIndex (huruf giliran kita - CONFIRMED dari scan)
-    local cwi = findByName("CurrentWordIndex", "TextLabel")
-    if cwi then
-        local txt = cwi.Text:match("^%s*(.-)%s*$")
-        if txt and #txt >= 1 and #txt <= 5 and txt:match("^[A-Za-z]+$") then
-            return txt:lower()
+    -- Strategi 1: nama-nama label eksak yang dikenal
+    local exactNames = {
+        "CurrentWordIndex","WordServer","Word","CurrentWord","Prefix",
+        "HurufAwal","StartLetter","LetterDisplay","ActiveLetter","TurnLetter",
+        "PrefixLabel","StartWord","Chain","ChainStart","InputPrefix",
+    }
+    for _, name in ipairs(exactNames) do
+        local v = findByName(name, "TextLabel")
+        if v and v.Visible then
+            local txt = (v.Text:match("^%s*(.-)%s*$") or ""):lower()
+            -- Cek format "Hurufnya adalah: X"
+            local found = v.Text:match("[Hh]urufnya%s*[Aa]dalah%s*:%s*([A-Za-z]+)")
+                       or v.Text:match("[Hh]uruf%s*:%s*([A-Za-z]+)")
+                       or v.Text:match("[Ss]tart%s*:%s*([A-Za-z]+)")
+                       or v.Text:match(":%s*([A-Za-z]+)%s*$")
+            if found and #found <= 3 then return found:lower() end
+            -- Atau label yang isinya 1-3 huruf langsung
+            if #txt >= 1 and #txt <= 3 and txt:match("^[a-z]+$") then
+                return txt
+            end
         end
     end
 
-    -- Metode 2: WordServer "Hurufnya adalah: X"
-    local wsLabel = findByName("WordServer", "TextLabel")
-    if wsLabel then
-        local found = wsLabel.Text:match("[Hh]urufnya%s+adalah%s*:%s*([A-Za-z]+)")
-        if found then return found:lower() end
-        local huruf = wsLabel.Text:match(":%s*([A-Za-z]+)%s*$")
-        if huruf and #huruf <= 3 then return huruf:lower() end
-    end
-
-    -- Metode 3: Huruf terakhir dari kata lawan di papan
+    -- Strategi 2: cari dari kata di papan → huruf terakhirnya
     local boardWord = getLastWordOnBoard()
-    if boardWord then
+    if boardWord and #boardWord >= 2 then
         return boardWord:sub(-1)
     end
 
-    -- Metode 4: TextLabel "Word"
-    local wordLabel = findByName("Word", "TextLabel")
-    if wordLabel then
-        local txt = wordLabel.Text:match("^%s*(.-)%s*$")
-        if txt and #txt >= 1 and #txt <= 5 and txt:match("^[A-Za-z]+$") then
-            return txt:lower()
+    -- Strategi 3: label berisi 1 huruf kapital (display huruf awal)
+    local cands = {}
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextLabel") and v.Visible then
+            local txt = v.Text:match("^%s*(.-)%s*$") or ""
+            if #txt == 1 and txt:match("[A-Za-z]") then
+                local sz = v.AbsoluteSize
+                table.insert(cands, {letter=txt:lower(), area=sz.X*sz.Y})
+            end
+        end
+    end
+    table.sort(cands, function(a,b) return a.area > b.area end)
+    if #cands > 0 then return cands[1].letter end
+
+    -- Strategi 4: pattern teks "mulai dari X" atau "dimulai X"
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextLabel") and v.Visible then
+            local t = v.Text
+            local found = t:match("[Mm]ulai%s+[Dd]ari%s*:?%s*([A-Za-z])")
+                       or t:match("[Dd]imulai%s+[Dd]engan%s*:?%s*([A-Za-z])")
+                       or t:match("[Bb]erawalan%s*:?%s*([A-Za-z])")
+                       or t:match("[Aa]walan%s*:?%s*([A-Za-z])")
+                       or t:match("^([A-Za-z])%-")   -- format "N-..."
+            if found then return found:lower() end
         end
     end
 
     return nil
 end
 
--- Cek apakah giliran kita (keyboard huruf A visible = giliran kita)
+-- Cek apakah giliran kita
+-- Cara paling reliable: tombol huruf A-Z visible = giliran kita
 local function isOurTurn()
-    local aBtn = findByName("A", "TextButton")
-    if aBtn and aBtn.Visible then return true end
+    -- Cek tombol "A" visible (ada keyboard huruf di layar)
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextButton") and v.Name == "A" and v.Visible then
+            return true
+        end
+    end
+    -- Cek tombol Enter visible
+    local enter = findByName("Enter", "TextButton")
+    if enter and enter.Visible then return true end
+    -- Cek label WordServer
     local ws = findByName("WordServer", "TextLabel")
     if ws then
         local t = ws.Text:lower()
-        return t:find("hurufnya") ~= nil or t:find("huruf") ~= nil
+        if t:find("hurufnya") or t:find("huruf") or t:find("giliran") then
+            return true
+        end
     end
-    return false
+    -- Fallback: kalau ada prefix terdeteksi, anggap giliran kita
+    return true  -- biarkan getCurrentPrefix yang memutuskan
 end
 
 -- Cek kata sudah dipakai
@@ -314,10 +402,35 @@ local function findLetterBtn(letter)
     return nil
 end
 
+-- ==========================================
+-- KLIK TOMBOL — 4 METODE SEKALIGUS
+-- ==========================================
 local function clickBtn(btn)
     if not btn then return end
+
+    -- Metode 1: Fire event langsung
     pcall(function() btn.MouseButton1Click:Fire() end)
-    task.wait(0.02)
+    task.wait(0.01)
+
+    -- Metode 2: VirtualInputManager dengan koordinat absolut
+    -- (paling reliable di mobile executor / Fluxus / Delta)
+    pcall(function()
+        local cx = btn.AbsolutePosition.X + btn.AbsoluteSize.X / 2
+        local cy = btn.AbsolutePosition.Y + btn.AbsoluteSize.Y / 2
+        VIM:SendMouseButtonEvent(cx, cy, 0, true,  game, 1)
+        task.wait(0.01)
+        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 1)
+    end)
+    task.wait(0.01)
+
+    -- Metode 3: simulasi MouseButton1Down + Up lewat event
+    pcall(function()
+        btn.MouseButton1Down:Fire()
+        task.wait(0.01)
+        btn.MouseButton1Up:Fire()
+    end)
+
+    task.wait(0.01)
 end
 
 -- ==========================================
@@ -332,33 +445,71 @@ local function submitWord(word)
         task.wait(CONFIG.SUBMIT_COOLDOWN - (now - lastSubmitTime))
     end
 
-    -- Klik tombol huruf satu per satu (cara utama untuk game ini)
-    local allFound = true
-    for i = 1, #word do
-        local ch = word:sub(i,i)
-        local btn = findLetterBtn(ch)
-        if btn then
-            clickBtn(btn)
-            local delay = CONFIG.SPEED_MIN + math.random()*(CONFIG.SPEED_MAX-CONFIG.SPEED_MIN)
+    -- ── PRIORITAS 1: TextBox (ini yang jalan di game ini) ──
+    local box = findInputBox()
+    if box and box.Parent then
+        pcall(function() box:CaptureFocus() end)
+        task.wait(0.04)
+        box.Text = ""
+        task.wait(0.02)
+
+        -- Ketik huruf per huruf
+        for i = 1, #word do
+            box.Text = word:sub(1, i)
+            local delay = CONFIG.SPEED_MIN + math.random()*(CONFIG.SPEED_MAX - CONFIG.SPEED_MIN)
             task.wait(delay)
-        else
-            allFound = false
-            break
         end
+
+        task.wait(0.08)
+
+        -- Submit
+        if CONFIG.AUTO_SUBMIT then
+            local sb = findSubmitBtn()
+            if sb then
+                clickBtn(sb)
+            else
+                pcall(function()
+                    VIM:SendKeyEvent(true,  Enum.KeyCode.Return, false, game)
+                    task.wait(0.04)
+                    VIM:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                end)
+            end
+        end
+
+        lastSubmitTime = tick()
+        return true
     end
 
-    task.wait(0.1)
-
-    -- Klik tombol Enter (CONFIRMED dari scan)
-    if CONFIG.AUTO_SUBMIT then
-        local sb = findSubmitBtn()
-        if sb then
-            clickBtn(sb)
+    -- ── PRIORITAS 2: Klik tombol huruf A-Z di layar ──
+    local testBtn = findLetterBtn("a") or findLetterBtn("s") or findLetterBtn("n")
+    if testBtn then
+        for i = 1, #word do
+            local ch = word:sub(i,i)
+            local b = findLetterBtn(ch)
+            if b then clickBtn(b) end
+            local delay = CONFIG.SPEED_MIN + math.random()*(CONFIG.SPEED_MAX - CONFIG.SPEED_MIN)
+            task.wait(delay)
         end
+        task.wait(0.08)
+        if CONFIG.AUTO_SUBMIT then
+            local sb = findSubmitBtn()
+            if sb then
+                clickBtn(sb)
+            else
+                pcall(function()
+                    VIM:SendKeyEvent(true,  Enum.KeyCode.Return, false, game)
+                    task.wait(0.04)
+                    VIM:SendKeyEvent(false, Enum.KeyCode.Return, false, game)
+                end)
+            end
+        end
+        lastSubmitTime = tick()
+        return true
     end
 
+    print("[SK] ⚠ Tidak ada TextBox maupun tombol huruf! Pastikan giliran kamu aktif.")
     lastSubmitTime = tick()
-    return true
+    return false
 end
 
 -- ==========================================
@@ -970,7 +1121,6 @@ gset("SK_Stop", function()
     gset("SK_Stop", nil)
 end)
 
-print("[SAMBUNG KATA v9.0] Loaded!")
-print("[SAMBUNG KATA v9.0] Deteksi: TextLabel 'Word' + TextButton 'Enter' (confirmed)")
-print("[SAMBUNG KATA v9.0] AUTO = jawab otomatis | MANUAL = pilih dari 5 rekomendasi")
-print("[SAMBUNG KATA v9.0] Fitur: Anti-spam | Natural Type | Custom Akhiran | Speed 4x")
+print("[SAMBUNG KATA v9.3] Loaded!")
+print("[SAMBUNG KATA v9.3] Auto ketik: TextBox prioritas utama (sama seperti manual)")
+print("[SAMBUNG KATA v9.3] Ketik debugScan() di konsol untuk debug nama UI game")
