@@ -185,9 +185,45 @@ local function findByName(name, class)
     return nil
 end
 
--- Ambil prefix dari TextLabel "Word" (CONFIRMED dari console)
+-- Ambil kata terakhir di papan (kata lawan) dari TextLabel "Words"
+local function getLastWordOnBoard()
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextLabel") and v.Name == "Words" and v.Visible then
+            local txt = v.Text:match("^%s*(.-)%s*$")
+            if txt and #txt >= 2 and txt:match("^[A-Za-z]+$") then
+                return txt:lower()
+            end
+        end
+    end
+    return nil
+end
+
 local function getCurrentPrefix()
-    -- Metode 1: TextLabel bernama "Word" (CONFIRMED)
+    -- Metode 1: CurrentWordIndex (huruf giliran kita - CONFIRMED dari scan)
+    local cwi = findByName("CurrentWordIndex", "TextLabel")
+    if cwi then
+        local txt = cwi.Text:match("^%s*(.-)%s*$")
+        if txt and #txt >= 1 and #txt <= 5 and txt:match("^[A-Za-z]+$") then
+            return txt:lower()
+        end
+    end
+
+    -- Metode 2: WordServer "Hurufnya adalah: X"
+    local wsLabel = findByName("WordServer", "TextLabel")
+    if wsLabel then
+        local found = wsLabel.Text:match("[Hh]urufnya%s+adalah%s*:%s*([A-Za-z]+)")
+        if found then return found:lower() end
+        local huruf = wsLabel.Text:match(":%s*([A-Za-z]+)%s*$")
+        if huruf and #huruf <= 3 then return huruf:lower() end
+    end
+
+    -- Metode 3: Huruf terakhir dari kata lawan di papan
+    local boardWord = getLastWordOnBoard()
+    if boardWord then
+        return boardWord:sub(-1)
+    end
+
+    -- Metode 4: TextLabel "Word"
     local wordLabel = findByName("Word", "TextLabel")
     if wordLabel then
         local txt = wordLabel.Text:match("^%s*(.-)%s*$")
@@ -196,29 +232,13 @@ local function getCurrentPrefix()
         end
     end
 
-    -- Metode 2: Fallback - cari pola "Hurufnya adalah: X" dari WordServer
-    local wsLabel = findByName("WordServer", "TextLabel")
-    if wsLabel then
-        local found = wsLabel.Text:match("[Hh]urufnya%s+adalah%s*:%s*([A-Za-z]+)")
-        if found then return found:lower() end
-    end
-
-    -- Metode 3: Fallback - TextLabel 1-3 huruf besar yang visible
-    for _, obj in ipairs(getDescendants()) do
-        if obj:IsA("TextLabel") and obj.Visible then
-            local t = obj.Text:gsub("%s+","")
-            if #t >= 1 and #t <= 3 and t:match("^[A-Za-z]+$")
-            and obj.AbsoluteSize.X > 20 then
-                return t:lower()
-            end
-        end
-    end
-
     return nil
 end
 
--- Cek apakah giliran kita
+-- Cek apakah giliran kita (keyboard huruf A visible = giliran kita)
 local function isOurTurn()
+    local aBtn = findByName("A", "TextButton")
+    if aBtn and aBtn.Visible then return true end
     local ws = findByName("WordServer", "TextLabel")
     if ws then
         local t = ws.Text:lower()
@@ -262,17 +282,14 @@ local function findInputBox()
 end
 
 local function findSubmitBtn()
-    -- CONFIRMED: TextButton bernama "Enter"
     local enter = findByName("Enter", "TextButton")
     if enter and enter.Visible then return enter end
-
-    -- Fallback
     for _, v in ipairs(getDescendants()) do
         if v:IsA("TextButton") and v.Visible then
             local n = v.Name:lower()
             local t = v.Text:lower():gsub("%s+","")
-            if n=="enter" or n:find("submit") or n:find("kirim")
-            or t=="enter" or t=="kirim" or t=="submit" then
+            if n=="enter" or n:find("submit") or n:find("masuk")
+            or t=="enter" or t=="masuk" or t=="submit" then
                 return v
             end
         end
@@ -280,23 +297,27 @@ local function findSubmitBtn()
     return nil
 end
 
--- ==========================================
--- HIDE KEYBOARD (mobile)
--- ==========================================
-local function hideKeyboard()
-    if not CONFIG.HIDE_KB then return end
-    pcall(function()
-        local dummy = Instance.new("TextBox")
-        dummy.Size = UDim2.new(0,1,0,1)
-        dummy.Position = UDim2.new(0,-200,0,-200)
-        dummy.BackgroundTransparency = 1
-        dummy.TextTransparency = 1
-        dummy.Parent = playerGui
-        dummy:CaptureFocus()
-        task.wait(0.05)
-        dummy:ReleaseFocus()
-        dummy:Destroy()
-    end)
+-- Cari tombol huruf di game (CONFIRMED: TextButton nama A-Z)
+local function findLetterBtn(letter)
+    local upper = letter:upper()
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextButton") and v.Name == upper and v.Visible then
+            return v
+        end
+    end
+    -- fallback: cari berdasarkan Text
+    for _, v in ipairs(getDescendants()) do
+        if v:IsA("TextButton") and v.Text == upper and v.Visible then
+            return v
+        end
+    end
+    return nil
+end
+
+local function clickBtn(btn)
+    if not btn then return end
+    pcall(function() btn.MouseButton1Click:Fire() end)
+    task.wait(0.02)
 end
 
 -- ==========================================
@@ -311,77 +332,33 @@ local function submitWord(word)
         task.wait(CONFIG.SUBMIT_COOLDOWN - (now - lastSubmitTime))
     end
 
-    local inputBox = findInputBox()
-
-    if inputBox then
-        pcall(function() inputBox:CaptureFocus() end)
-        task.wait(0.04)
-        inputBox.Text = ""
-        task.wait(0.02)
-
-        if CONFIG.NATURAL_TYPE then
-            for i = 1, #word do
-                inputBox.Text = word:sub(1,i)
-                local d = CONFIG.SPEED_MIN + math.random()*(CONFIG.SPEED_MAX-CONFIG.SPEED_MIN)
-                task.wait(d)
-            end
+    -- Klik tombol huruf satu per satu (cara utama untuk game ini)
+    local allFound = true
+    for i = 1, #word do
+        local ch = word:sub(i,i)
+        local btn = findLetterBtn(ch)
+        if btn then
+            clickBtn(btn)
+            local delay = CONFIG.SPEED_MIN + math.random()*(CONFIG.SPEED_MAX-CONFIG.SPEED_MIN)
+            task.wait(delay)
         else
-            inputBox.Text = word
-            task.wait(0.05)
+            allFound = false
+            break
         end
-
-        task.wait(0.1)
-
-        if CONFIG.AUTO_SUBMIT then
-            local sb = findSubmitBtn()
-            if sb then
-                -- Klik via event
-                pcall(function() sb.MouseButton1Click:Fire() end)
-                task.wait(0.03)
-                -- Klik via VIM (lebih andal di mobile)
-                pcall(function()
-                    local cx = sb.AbsolutePosition.X + sb.AbsoluteSize.X/2
-                    local cy = sb.AbsolutePosition.Y + sb.AbsoluteSize.Y/2
-                    VIM:SendMouseButtonEvent(cx,cy,0,true,game,1)
-                    task.wait(0.03)
-                    VIM:SendMouseButtonEvent(cx,cy,0,false,game,1)
-                end)
-            else
-                -- Fallback: tekan Enter
-                pcall(function()
-                    VIM:SendKeyEvent(true,Enum.KeyCode.Return,false,game)
-                    task.wait(0.04)
-                    VIM:SendKeyEvent(false,Enum.KeyCode.Return,false,game)
-                end)
-                pcall(function() inputBox.FocusLost:Fire(true) end)
-            end
-        end
-
-        lastSubmitTime = tick()
-        task.delay(0.2, hideKeyboard)
-        return true
-    else
-        -- Fallback keyboard fisik
-        pcall(function()
-            for i = 1, #word do
-                local c = word:sub(i,i):upper()
-                local kc = Enum.KeyCode[c]
-                if kc then
-                    VIM:SendKeyEvent(true,kc,false,game)
-                    task.wait(0.02)
-                    VIM:SendKeyEvent(false,kc,false,game)
-                    task.wait(CONFIG.SPEED_MIN + math.random()*(CONFIG.SPEED_MAX-CONFIG.SPEED_MIN))
-                end
-            end
-            task.wait(0.1)
-            VIM:SendKeyEvent(true,Enum.KeyCode.Return,false,game)
-            task.wait(0.04)
-            VIM:SendKeyEvent(false,Enum.KeyCode.Return,false,game)
-        end)
-        lastSubmitTime = tick()
-        task.delay(0.2, hideKeyboard)
-        return true
     end
+
+    task.wait(0.1)
+
+    -- Klik tombol Enter (CONFIRMED dari scan)
+    if CONFIG.AUTO_SUBMIT then
+        local sb = findSubmitBtn()
+        if sb then
+            clickBtn(sb)
+        end
+    end
+
+    lastSubmitTime = tick()
+    return true
 end
 
 -- ==========================================
@@ -884,13 +861,29 @@ local function startAuto()
 
     autoThread = task.spawn(function()
         while isRunning do
-            task.wait(0.3)
+            task.wait(0.2)
             if not isRunning then break end
 
-            -- Cek delay alert (kena spam penalty dari game)
+            -- Cek delay alert
             if hasDelayAlert() then
                 setStatus("⚠ DELAY ALERT! Tunggu...", C.red)
                 task.wait(3)
+                continue
+            end
+
+            -- Cek giliran kita dulu
+            if not isOurTurn() then
+                -- Bukan giliran kita, tapi tetap update prefix dari papan
+                local boardWord = getLastWordOnBoard()
+                if boardWord then
+                    local nextHuruf = boardWord:sub(-1):upper()
+                    prefixLbl.Text = nextHuruf
+                    setStatus("Giliran lawan | Siap: " .. nextHuruf, C.muted)
+                else
+                    setStatus("Nunggu giliran...", C.muted)
+                    prefixLbl.Text = "?"
+                end
+                lastPrefix = nil
                 continue
             end
 
@@ -903,7 +896,7 @@ local function startAuto()
                 continue
             end
 
-            -- Skip kalau prefix sama dan belum ada perubahan (kata belum dipakai)
+            -- Skip kalau prefix sama dan tidak ada perubahan
             if prefix == lastPrefix and not isWordRejected() then
                 continue
             end
@@ -913,11 +906,10 @@ local function startAuto()
             TweenService:Create(hbStroke,TweenInfo.new(0.15),{Color=C.yellow,Transparency=0}):Play()
             setStatus("Prefix: " .. prefix:upper() .. " | Cari kata...", C.yellow)
 
-            task.wait(0.06 + math.random()*0.1)
+            task.wait(0.05 + math.random()*0.08)
             if not isRunning then break end
 
             if isAutoMode then
-                -- MODE AUTO: langsung jawab
                 local word = findBestWord(prefix)
                 if word then
                     kataLbl.Text = word
@@ -929,8 +921,8 @@ local function startAuto()
                     setStatus("✓ " .. word .. "  (→" .. ak .. ")", C.green)
                     TweenService:Create(hbStroke,TweenInfo.new(0.5),{Color=C.accent,Transparency=0.5}):Play()
                     lastDetectedWord = word
-                    task.wait(1.0)
-                    lastPrefix = nil  -- siap untuk putaran berikut
+                    task.wait(1.2)
+                    lastPrefix = nil
                 else
                     kataLbl.Text = "Tidak ada!"
                     kataLbl.TextColor3 = C.red
@@ -939,13 +931,10 @@ local function startAuto()
                     lastPrefix = nil
                 end
             else
-                -- MODE MANUAL: tampilkan rekomendasi
                 updateRekoms(prefix)
                 kataLbl.Text = "Pilih di bawah ↓"
                 kataLbl.TextColor3 = C.orange
                 setStatus("Pilih kata untuk: " .. prefix:upper(), C.orange)
-
-                -- Tunggu user pilih (atau prefix berubah)
                 local waitCount = 0
                 while isRunning and lastPrefix == prefix do
                     task.wait(0.3)
